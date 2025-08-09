@@ -124,14 +124,53 @@
           </div>
         </div>
       </div>
+      <EntryModal
+        v-model="balanceModalOpen"
+        kind="balance"
+        :entries="monthData.balanceSources"
+        :month-id="monthData.userMonthId"
+        :base-currency="baseCurrency"
+        :rates="currentMonthRates"
+        @change="updateBalance"
+      />
+      <EntryModal
+        v-model="incomeModalOpen"
+        kind="income"
+        :entries="monthData.incomeEntries"
+        :month-id="monthData.userMonthId"
+        :base-currency="baseCurrency"
+        :rates="currentMonthRates"
+        @change="updateIncome"
+      />
+      <EntryModal
+        v-model="expenseModalOpen"
+        kind="expense"
+        :entries="monthData.expenseEntries"
+        :month-id="monthData.userMonthId"
+        :base-currency="baseCurrency"
+        :rates="currentMonthRates"
+        @change="updateExpense"
+      />
     </div>
     <hr>
   </li>
 </template>
 
 <script setup lang="ts">
-import type { MonthData } from '~~/shared/types/budget'
-import { formatAmount, calculateTotalBalance, getBalanceChangeClass, getPocketExpensesClass } from '~~/shared/utils/budget'
+import type {
+  MonthData,
+  BalanceSourceData,
+  IncomeEntryData,
+  ExpenseEntryData,
+} from '~~/shared/types/budget'
+import {
+  formatAmount,
+  calculateTotalBalance,
+  getBalanceChangeClass,
+  getPocketExpensesClass,
+} from '~~/shared/utils/budget'
+import EntryModal from '~/components/budget/EntryModal.vue'
+import { useAuthState } from '~/composables/useAuthState'
 
 interface Props {
   monthData: MonthData
@@ -140,8 +179,14 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits<{
+  (e: 'updateBalance', entries: BalanceSourceData[]): void
+  (e: 'updateIncome', entries: IncomeEntryData[]): void
+  (e: 'updateExpense', entries: ExpenseEntryData[]): void
+}>()
 
-const baseCurrency = 'RUB'
+const { user } = useAuthState()
+const baseCurrency = computed(() => user.value?.mainCurrency || 'USD')
 
 const currentMonthRates = computed(() => {
   return props.exchangeRates || {}
@@ -150,7 +195,7 @@ const currentMonthRates = computed(() => {
 const startBalance = computed(() => {
   return calculateTotalBalance(
     props.monthData.balanceSources,
-    baseCurrency,
+    baseCurrency.value,
     currentMonthRates.value,
   )
 })
@@ -163,7 +208,7 @@ const totalIncome = computed(() => {
       currency: entry.currency,
       amount: entry.amount,
     })),
-    baseCurrency,
+    baseCurrency.value,
     currentMonthRates.value,
   )
 })
@@ -176,20 +221,36 @@ const totalExpenses = computed(() => {
       currency: entry.currency,
       amount: entry.amount,
     })),
-    baseCurrency,
+    baseCurrency.value,
     currentMonthRates.value,
   )
 })
 
-const openBalanceModal = (): void => {
-  console.log('Открытие модала баланса для месяца:', props.monthData.month + 1, props.monthData.year)
+const balanceModalOpen = ref(false)
+const incomeModalOpen = ref(false)
+const expenseModalOpen = ref(false)
+
+const openBalanceModal = () => {
+  balanceModalOpen.value = true
 }
 
-const openIncomeModal = (): void => {
-  console.log('Открытие модала доходов для месяца:', props.monthData.month + 1, props.monthData.year)
+const openIncomeModal = () => {
+  incomeModalOpen.value = true
 }
 
-const openExpenseModal = (): void => {
-  console.log('Открытие модала расходов для месяца:', props.monthData.month + 1, props.monthData.year)
+const openExpenseModal = () => {
+  expenseModalOpen.value = true
+}
+
+const updateBalance = (entries: BalanceSourceData[]) => {
+  emit('updateBalance', entries)
+}
+
+const updateIncome = (entries: IncomeEntryData[]) => {
+  emit('updateIncome', entries)
+}
+
+const updateExpense = (entries: ExpenseEntryData[]) => {
+  emit('updateExpense', entries)
 }
 </script>
